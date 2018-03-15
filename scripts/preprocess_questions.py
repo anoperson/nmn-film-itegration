@@ -53,6 +53,25 @@ def program_to_str(program, mode):
     return vr.programs.list_to_str(program_postfix)
   return None
 
+def program_to_arity(program, mode):
+  if mode == 'prefix':
+    program_prefix = vr.programs.list_to_prefix(program)
+    return vr.programs.list_to_arity(program_prefix)
+  elif mode == 'postfix':
+    program_postfix = vr.programs.list_to_postfix(program)
+    return vr.programs.list_to_arity(program_postfix)
+  else:
+    raise(NotImplementedError)
+
+def program_to_degree(program, mode):
+  if mode == 'prefix':
+    program_prefix = vr.programs.list_to_prefix(program)
+    return vr.programs.list_to_degree(program_prefix)
+  elif mode == 'postfix':
+    program_postfix = vr.programs.list_to_postfix(program)
+    return vr.programs.list_to_degree(program_postfix)
+  else:
+    raise(NotImplementedError)
 
 def main(args):
   if (args.input_vocab_json == '') and (args.output_vocab_json == ''):
@@ -112,6 +131,8 @@ def main(args):
   print('Encoding data')
   questions_encoded = []
   programs_encoded = []
+  programs_arities = []
+  programs_degrees = []
   question_families = []
   orig_idxs = []
   image_idxs = []
@@ -140,6 +161,9 @@ def main(args):
       program_tokens = tokenize(program_str)
       program_encoded = encode(program_tokens, vocab['program_token_to_idx'])
       programs_encoded.append(program_encoded)
+      
+      programs_arities.append(program_to_arity(program, args.mode))
+      programs_degrees.append(program_to_degree(program, args.mode))
 
     if 'answer' in q:
       answers.append(vocab['answer_token_to_idx'][q['answer']])
@@ -155,13 +179,29 @@ def main(args):
     for pe in programs_encoded:
       while len(pe) < max_program_length:
         pe.append(vocab['program_token_to_idx']['<NULL>'])
+    
+    max_program_arity_length = max(len(x) for x in programs_arities)
+    for ar in programs_arities:
+      while len(ar) < max_program_arity_length:
+        ar.append(0)
+    
+    max_program_degree_length = max(len(x) for x in programs_degrees)
+    for de in programs_degrees:
+      while len(de) < max_program_degree_length:
+        de.append(0)
+    
+    assert(max_program_length == max_program_arity_length) and (max_program_length == max_program_degree_length)
 
   # Create h5 file
   print('Writing output')
   questions_encoded = np.asarray(questions_encoded, dtype=np.int32)
   programs_encoded = np.asarray(programs_encoded, dtype=np.int32)
+  programs_arities = np.asarray(programs_arities, dtype=np.int32)
+  programs_degrees = np.asarray(programs_degrees, dtype=np.int32)
   print(questions_encoded.shape)
   print(programs_encoded.shape)
+  print(programs_arities.shape)
+  print(programs_degrees.shape)
 
   mapping = {}
   for i, t in enumerate(set(types)):
@@ -180,6 +220,8 @@ def main(args):
 
     if len(programs_encoded) > 0:
       f.create_dataset('programs', data=programs_encoded)
+      f.create_dataset('programs_arities', data=programs_arities)
+      f.create_dataset('programs_degrees', data=programs_degrees)
     if len(question_families) > 0:
       f.create_dataset('question_families', data=np.asarray(question_families))
     if len(answers) > 0:

@@ -27,14 +27,16 @@ def is_chain(program_list):
   return all(visited)
 
 
-def list_to_tree(program_list):
-  def build_subtree(cur):
+def list_to_tree(program_list, degree=1):
+  def build_subtree(cur, degree):
     return {
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
-      'inputs': [build_subtree(program_list[i]) for i in cur['inputs']],
+      'inputs': [build_subtree(program_list[i], degree+1) for i in cur['inputs']],
+      'arity': len(cur['inputs']) if len(cur['inputs']) > 0 else 1,
+      'degree' : degree,
     }
-  return build_subtree(program_list[-1])
+  return build_subtree(program_list[-1], degree)
 
 
 def tree_to_prefix(program_tree):
@@ -43,6 +45,8 @@ def tree_to_prefix(program_tree):
     output.append({
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
+      'arity': cur['arity':],
+      'degree': cur['degree':],
     })
     for node in cur['inputs']:
       helper(node)
@@ -62,6 +66,8 @@ def tree_to_postfix(program_tree):
     output.append({
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
+      'arity': cur['arity':],
+      'degree': cur['degree':],
     })
   helper(program_tree)
   return output
@@ -130,7 +136,6 @@ def function_to_str(f):
     value_str = '[%s]' % ','.join(f['value_inputs'])
   return '%s%s' % (f['function'], value_str)
 
-
 def str_to_function(s):
   if '[' not in s:
     return {
@@ -147,6 +152,15 @@ def str_to_function(s):
 def list_to_str(program_list):
   return ' '.join(function_to_str(f) for f in program_list)
 
+def list_to_arity(program_list):
+  if 'arity' in program_list[0]:
+    return [f['arity'] for f in program_list]
+  return [0] * len(program_list)
+
+def list_to_degree(program_list):
+  if 'degree' in program_list[0]:
+    return [f['degree'] for f in program_list]
+  return [0] * len(program_list)
 
 def get_num_inputs(f):
   # This is a litle hacky; it would be better to look up from metadata.json
