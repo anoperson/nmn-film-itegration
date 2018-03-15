@@ -24,6 +24,10 @@ class TFiLMedNet(nn.Module):
                stem_stride=1,
                stem_padding=None,
                num_modules=4,
+               
+               max_program_module_arity=2,
+               max_program_tree_depth=5,
+               
                module_num_layers=1,
                module_dim=128,
                module_residual=True,
@@ -56,6 +60,10 @@ class TFiLMedNet(nn.Module):
     self.timing = False
 
     self.num_modules = num_modules
+    
+    self.max_program_module_arity = max_program_module_arity
+    self.max_program_tree_depth = max_program_tree_depth
+    
     self.module_num_layers = module_num_layers
     self.module_batchnorm = module_batchnorm
     self.module_dim = module_dim
@@ -71,12 +79,20 @@ class TFiLMedNet(nn.Module):
     self.condition_pattern = condition_pattern
     if len(condition_pattern) == 0:
       self.condition_pattern = []
-      for i in range(self.module_num_layers * self.num_modules):
-        self.condition_pattern.append(self.condition_method != 'concat')
+      
+      for i in range(self.max_program_tree_depth):
+        idepth = []
+        for j in range(self.max_program_module_arity):
+          ijarity = [self.condition_method != 'concat'] * self.module_num_layers
+          idepth.append(ijarity)
+        self.condition_pattern.append(idepth)
+
     else:
-      self.condition_pattern = [i > 0 for i in self.condition_pattern]
+      for i in range(self.max_program_tree_depth):
+        for j in range(self.max_program_module_arity):
+          self.condition_pattern[i][j] = [k > 0 for k in self.condition_pattern[i][j]]
     self.extra_channel_freq = self.use_coords_freq
-    self.block = FiLMedResBlock
+    #self.block = FiLMedResBlock
     self.num_cond_maps = 2 * self.module_dim if self.condition_method == 'concat' else 0
     self.fwd_count = 0
     self.num_extra_channels = 2 if self.use_coords_freq > 0 else 0
@@ -97,10 +113,12 @@ class TFiLMedNet(nn.Module):
     # Initialize FiLMed network body
     self.function_modules = {}
     self.vocab = vocab
-    for fn_num in range(self.num_modules):
-      with_cond = self.condition_pattern[self.module_num_layers * fn_num:
-                                          self.module_num_layers * (fn_num + 1)]
-      mod = self.block(module_dim, with_residual=module_residual, with_batchnorm=module_batchnorm,
+    #for fn_num in range(self.num_modules):
+    for dep in range(self.max_program_tree_depth):
+      for art in range(self.max_program_module_arity):
+        with_cond = self.condition_pattern[dep][art]
+        if art == 0:
+          mod = TfilmedResBlock(module_dim, with_residual=module_residual, with_batchnorm=module_batchnorm,
                        with_cond=with_cond,
                        dropout=module_dropout,
                        num_extra_channels=self.num_extra_channels,
@@ -112,8 +130,22 @@ class TFiLMedNet(nn.Module):
                        num_layers=self.module_num_layers,
                        condition_method=condition_method,
                        debug_every=self.debug_every)
-      self.add_module(str(fn_num), mod)
-      self.function_modules[fn_num] = mod
+        else:
+          mod = ConCatTfilmBlock(art+1, module_dim, with_residual=module_residual, with_batchnorm=module_batchnorm,
+                       with_cond=with_cond,
+                       dropout=module_dropout,
+                       num_extra_channels=self.num_extra_channels,
+                       extra_channel_freq=self.extra_channel_freq,
+                       with_input_proj=module_input_proj,
+                       num_cond_maps=self.num_cond_maps,
+                       kernel_size=module_kernel_size,
+                       batchnorm_affine=module_batchnorm_affine,
+                       num_layers=self.module_num_layers,
+                       condition_method=condition_method,
+                       debug_every=self.debug_every)
+        ikey = str(dep+1)+'-'+str(art+1)
+        self.add_module(ikey, mod)
+        self.function_modules[ikey] = mod
 
     # Initialize output classifier
     self.classifier = build_classifier(module_dim + self.num_extra_channels, module_H, module_W,
@@ -195,8 +227,25 @@ class TFiLMedNet(nn.Module):
       pdb.set_trace()
     return out
 
+class ConCatTfilmBlock(nn.Module):
+    def __init__(self, num_input, in_dim, out_dim=None, with_residual=True, with_batchnorm=True,
+               with_cond=[False], dropout=0, num_extra_channels=0, extra_channel_freq=1,
+               with_input_proj=0, num_cond_maps=0, kernel_size=3, batchnorm_affine=False,
+               num_layers=1, condition_method='bn-film', debug_every=float('inf')):
+    super(ConCatTfilmBlock, self).__init__()
+    self.proj = nn.Conv2d(num_input * in_dim, in_dim, kernel_size=1, padding=0)
+    self.tfilmedResBlock = TfilmedResBlock(in_dim=in_dim, out_dim=out_dim, with_residual=with_residual, with_batchnorm=with_batchnorm,
+               with_cond=with_cond, dropout=dropout, num_extra_channels=num_extra_channels, extra_channel_freq=extra_channel_freq,
+               with_input_proj=with_input_proj, num_cond_maps=num_cond_maps, kernel_size=kernel_size, batchnorm_affine=batchnorm_affine,
+               num_layers=num_layers, condition_method=condition_method, debug_every=debug_every)
 
-class FiLMedResBlock(nn.Module):
+  def forward(self, x):
+    out = torch.cat(x, 1) # Concatentate along depth
+    out = F.relu(self.proj(out))
+    out = self.tfilmedResBlock(out)
+    return out
+
+class TfilmedResBlock(nn.Module):
   def __init__(self, in_dim, out_dim=None, with_residual=True, with_batchnorm=True,
                with_cond=[False], dropout=0, num_extra_channels=0, extra_channel_freq=1,
                with_input_proj=0, num_cond_maps=0, kernel_size=3, batchnorm_affine=False,

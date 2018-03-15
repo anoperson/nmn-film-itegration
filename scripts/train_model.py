@@ -302,7 +302,7 @@ def train_loop(args, train_loader, val_loader):
       compute_start_time = time.time()
 
       t += 1
-      questions, _, feats, answers, programs, _, programs_arities, programs_degrees = batch
+      questions, _, feats, answers, programs, _, programs_arities, programs_depths = batch
       if isinstance(questions, list):
         questions = questions[0]
       questions_var = Variable(questions.cuda())
@@ -313,8 +313,8 @@ def train_loop(args, train_loader, val_loader):
       
       if programs_arities[0] is not None:
         programs_arities_var = Variable(programs_arities.cuda())
-      if programs_degrees[0] is not None:
-        programs_degrees_var = Variable(programs_degrees.cuda())
+      if programs_depths[0] is not None:
+        programs_depths_var = Variable(programs_depths.cuda())
 
       reward = None
       if args.model_type == 'PG':
@@ -547,6 +547,10 @@ def get_execution_engine(args):
       ee = FiLMedNet(**kwargs)
     elif args.model_type == 'Tfilm':
       kwargs['num_modules'] = args.max_program_module_arity * args.max_program_tree_depth
+      
+      kwargs['max_program_module_arity'] = args.max_program_module_arity
+      kwargs['max_program_tree_depth'] = args.max_program_tree_depth
+      
       kwargs['stem_kernel_size'] = args.module_stem_kernel_size
       kwargs['stem_stride'] = args.module_stem_stride
       kwargs['stem_padding'] = args.module_stem_padding

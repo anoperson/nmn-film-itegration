@@ -64,8 +64,8 @@ class ClevrDataset(Dataset):
       self.all_programs = _dataset_to_tensor(question_h5['programs'], mask)
     if 'programs_arities' in question_h5:
       self.all_programs_arities = _dataset_to_tensor(question_h5['programs_arities'], maks)
-    if 'programs_degrees' in question_h5:
-      self.all_programs_degrees = _dataset_to_tensor(question_h5['programs_degrees'], mask)
+    if 'programs_depths' in question_h5:
+      self.all_programs_depths = _dataset_to_tensor(question_h5['programs_depths'], mask)
     self.all_answers = None
     if 'answers' in question_h5:
       self.all_answers = _dataset_to_tensor(question_h5['answers'], mask)
@@ -89,9 +89,9 @@ class ClevrDataset(Dataset):
     if self.all_programs_arities is not None:
       program_arity = self.all_programs_arities[index]
     
-    program_degree = None
-    if self.all_programs_degrees is not None:
-      program_degree = self.all_programs_degrees[index]
+    program_depth = None
+    if self.all_programs_depths is not None:
+      program_depth = self.all_programs_depths[index]
 
     image = None
     if self.image_h5 is not None:
@@ -115,8 +115,8 @@ class ClevrDataset(Dataset):
         program_json = vr.programs.postfix_to_list(program_json_seq)
 
     if q_type is None:
-      return (question, image, feats, answer, program_seq, program_json, program_arity, program_degree)
-    return ([question, q_type], image, feats, answer, program_seq, program_json, program_arity, program_degree)
+      return (question, image, feats, answer, program_seq, program_json, program_arity, program_depth)
+    return ([question, q_type], image, feats, answer, program_seq, program_json, program_arity, program_depth)
 
   def __len__(self):
     if self.max_samples is None:
@@ -191,7 +191,7 @@ def clevr_collate(batch):
   program_arity_batch = transposed[6]
   if transposed[6][0] is not None:
     program_arity_batch = default_collate(transposed[6])
-  program_degree_batch = transposed[7]
+  program_depth_batch = transposed[7]
   if transposed[7][0] is not None:
-    program_degree_batch = default_collate(transposed[7])
-  return [question_batch, image_batch, feat_batch, answer_batch, program_seq_batch, program_struct_batch, program_arity_batch, program_degree_batch]
+    program_depth_batch = default_collate(transposed[7])
+  return [question_batch, image_batch, feat_batch, answer_batch, program_seq_batch, program_struct_batch, program_arity_batch, program__batch]

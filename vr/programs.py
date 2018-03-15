@@ -27,16 +27,16 @@ def is_chain(program_list):
   return all(visited)
 
 
-def list_to_tree(program_list, degree=1):
-  def build_subtree(cur, degree):
+def list_to_tree(program_list, depth=1):
+  def build_subtree(cur, depth):
     return {
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
-      'inputs': [build_subtree(program_list[i], degree+1) for i in cur['inputs']],
+      'inputs': [build_subtree(program_list[i], depth+1) for i in cur['inputs']],
       'arity': len(cur['inputs']) if len(cur['inputs']) > 0 else 1,
-      'degree' : degree,
+      'depth' : depth,
     }
-  return build_subtree(program_list[-1], degree)
+  return build_subtree(program_list[-1], depth)
 
 
 def tree_to_prefix(program_tree):
@@ -46,7 +46,7 @@ def tree_to_prefix(program_tree):
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
       'arity': cur['arity':],
-      'degree': cur['degree':],
+      'depth': cur['depth':],
     })
     for node in cur['inputs']:
       helper(node)
@@ -67,7 +67,7 @@ def tree_to_postfix(program_tree):
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
       'arity': cur['arity':],
-      'degree': cur['degree':],
+      'depth': cur['depth':],
     })
   helper(program_tree)
   return output
@@ -157,9 +157,9 @@ def list_to_arity(program_list):
     return [f['arity'] for f in program_list]
   return [0] * len(program_list)
 
-def list_to_degree(program_list):
-  if 'degree' in program_list[0]:
-    return [f['degree'] for f in program_list]
+def list_to_depth(program_list):
+  if 'depth' in program_list[0]:
+    return [f['depth'] for f in program_list]
   return [0] * len(program_list)
 
 def get_num_inputs(f):
