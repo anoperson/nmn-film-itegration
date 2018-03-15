@@ -155,7 +155,55 @@ class TFiLMedNet(nn.Module):
 
     init_modules(self.modules())
 
-  def forward(self, x, film, save_activations=False):
+  def _forward_modules_ints(self, feats, program):
+    """
+    feats: FloatTensor of shape (N, C, H, W) giving features for each image
+    program: LongTensor of shape (N, L) giving a prefix-encoded program for
+      each image.
+    """
+    N = feats.size(0)
+    final_module_outputs = []
+    self.used_fns = torch.Tensor(program.size()).fill_(0)
+    for i in range(N):
+      cur_output, _ = self._forward_modules_ints_helper(feats, program, i, 0)
+      final_module_outputs.append(cur_output)
+    self.used_fns = self.used_fns.type_as(program.data).float()
+    final_module_outputs = torch.cat(final_module_outputs, 0)
+    return final_module_outputs
+
+  def _forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, j):
+    #used_fn_j = True
+    if j < program.size(1):
+      fn_idx = program.data[i, j]
+      fn_str = self.vocab['program_idx_to_token'][fn_idx]
+      fn_art = program_arity[i,j]
+      fn_dept = program_depth.data[i,j]
+    else:
+      #used_fn_j = False
+      fn_str = 'scene'
+    if fn_str == '<NULL>' or fn_str == '<END>':
+      #used_fn_j = False
+      fn_str = 'scene'
+    elif fn_str == '<START>':
+      used_fn_j = False
+      return self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, j + 1)
+    #if used_fn_j:
+    #  self.used_fns[i, j] = 1
+    j += 1
+    module = self.function_modules[fn_str]
+    if fn_str == 'scene':
+      module_inputs = [feats[i:i+1]]
+    else:
+      num_inputs = self.function_modules_num_inputs[fn_str]
+      module_inputs = []
+      while len(module_inputs) < num_inputs:
+        cur_input, j = self._forward_modules_ints_helper(feats, program, i, j)
+        module_inputs.append(cur_input)
+    module_output = module(*module_inputs)
+    return module_output, j
+    
+
+  def forward(self, x, film, program, program_arity, program_depth, save_activations=False):
     # Initialize forward pass and externally viewable activations
     self.fwd_count += 1
     if save_activations:
@@ -190,7 +238,12 @@ class TFiLMedNet(nn.Module):
     if save_activations:
       self.feats = feats
     N, _, H, W = feats.size()
-
+    
+    final_module_outputs = []
+    for i in range(N):
+      cur_output, _ = self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, 0)
+      final_module_outputs.append(cur_output)
+###########################
     # Propagate up the network from low-to-high numbered blocks
     module_inputs = Variable(torch.zeros(feats.size()).unsqueeze(1).expand(
       N, self.num_modules, self.module_dim, H, W)).type(torch.cuda.FloatTensor)
@@ -252,7 +305,7 @@ class TfilmedResBlock(nn.Module):
                num_layers=1, condition_method='bn-film', debug_every=float('inf')):
     if out_dim is None:
       out_dim = in_dim
-    super(FiLMedResBlock, self).__init__()
+    super(TfilmedResBlock, self).__init__()
     self.with_residual = with_residual
     self.with_batchnorm = with_batchnorm
     self.with_cond = with_cond
