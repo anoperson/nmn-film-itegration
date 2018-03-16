@@ -221,6 +221,8 @@ def main(args):
 
   with ClevrDataLoader(**train_loader_kwargs) as train_loader, \
        ClevrDataLoader(**val_loader_kwargs) as val_loader:
+    args.max_program_module_arity = max(train_loader.max_arity, val_loader.max_arity)
+    args.max_program_tree_depth = max(train_loader.max_depth, val_loader.max_depth)
     train_loop(args, train_loader, val_loader)
 
   if args.use_local_copies == 1 and args.cleanup_local_copies == 1:

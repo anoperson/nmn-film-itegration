@@ -63,8 +63,10 @@ class ClevrDataset(Dataset):
     if 'programs' in question_h5:
       self.all_programs = _dataset_to_tensor(question_h5['programs'], mask)
     if 'programs_arities' in question_h5:
+      self.max_arity = question_h5['programs_arities'].max()
       self.all_programs_arities = _dataset_to_tensor(question_h5['programs_arities'], maks)
     if 'programs_depths' in question_h5:
+      self.max_depth = question_h5['programs_depths'].max()
       self.all_programs_depths = _dataset_to_tensor(question_h5['programs_depths'], mask)
     self.all_answers = None
     if 'answers' in question_h5:
@@ -157,6 +159,8 @@ class ClevrDataLoader(DataLoader):
                                   max_samples=max_samples,
                                   question_families=question_families,
                                   image_idx_start_from=image_idx_start_from)
+      self.max_arity = self.dataset.max_arity
+      self.max_depth = self.dataset.max_depth
     kwargs['collate_fn'] = clevr_collate
     super(ClevrDataLoader, self).__init__(self.dataset, **kwargs)
 

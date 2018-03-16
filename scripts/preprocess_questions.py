@@ -173,7 +173,7 @@ def main(args):
   for qe in questions_encoded:
     while len(qe) < max_question_length:
       qe.append(vocab['question_token_to_idx']['<NULL>'])
-
+  
   if len(programs_encoded) > 0:
     max_program_length = max(len(x) for x in programs_encoded)
     for pe in programs_encoded:
@@ -189,6 +189,7 @@ def main(args):
     for de in programs_depths:
       while len(de) < max_program_depth_length:
         de.append(-1)
+    
     
     assert(max_program_length == max_program_arity_length) and (max_program_length == max_program_depth_length)
 
