@@ -114,6 +114,22 @@ class TFiLMedNet(nn.Module):
     self.function_modules = {}
     self.vocab = vocab
     #for fn_num in range(self.num_modules):
+    
+    mod = TfilmedResBlock(module_dim, with_residual=module_residual, with_batchnorm=module_batchnorm,
+                       with_cond=with_cond,
+                       dropout=module_dropout,
+                       num_extra_channels=self.num_extra_channels,
+                       extra_channel_freq=self.extra_channel_freq,
+                       with_input_proj=module_input_proj,
+                       num_cond_maps=self.num_cond_maps,
+                       kernel_size=module_kernel_size,
+                       batchnorm_affine=module_batchnorm_affine,
+                       num_layers=self.module_num_layers,
+                       condition_method=condition_method,
+                       debug_every=self.debug_every)
+    self.add_module('0', mod)
+    self.function_modules['0'] = mod
+    
     for dep in range(self.max_program_tree_depth):
       for art in range(self.max_program_module_arity):
         with_cond = self.condition_pattern[dep][art]
@@ -155,51 +171,55 @@ class TFiLMedNet(nn.Module):
 
     init_modules(self.modules())
 
-  def _forward_modules_ints(self, feats, program):
-    """
-    feats: FloatTensor of shape (N, C, H, W) giving features for each image
-    program: LongTensor of shape (N, L) giving a prefix-encoded program for
-      each image.
-    """
-    N = feats.size(0)
-    final_module_outputs = []
-    self.used_fns = torch.Tensor(program.size()).fill_(0)
-    for i in range(N):
-      cur_output, _ = self._forward_modules_ints_helper(feats, program, i, 0)
-      final_module_outputs.append(cur_output)
-    self.used_fns = self.used_fns.type_as(program.data).float()
-    final_module_outputs = torch.cat(final_module_outputs, 0)
-    return final_module_outputs
-
-  def _forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, j):
+  def _forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, save_activations, i, j):
     #used_fn_j = True
     if j < program.size(1):
       fn_idx = program.data[i, j]
       fn_str = self.vocab['program_idx_to_token'][fn_idx]
-      fn_art = program_arity[i,j]
+      fn_art = program_arity.data[i,j]
       fn_dept = program_depth.data[i,j]
     else:
       #used_fn_j = False
       fn_str = 'scene'
-    if fn_str == '<NULL>' or fn_str == '<END>':
+      fn_art = -1
+      fn_dept = -1
+    
+    if fn_art < 0 or fn_str == '<END>': return feats[i:i+1], j+1
+    if fn_str == '<START>':
       #used_fn_j = False
-      fn_str = 'scene'
-    elif fn_str == '<START>':
-      used_fn_j = False
       return self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, j + 1)
+    
     #if used_fn_j:
     #  self.used_fns[i, j] = 1
     j += 1
-    module = self.function_modules[fn_str]
-    if fn_str == 'scene':
-      module_inputs = [feats[i:i+1]]
+    
+    if fn_art == 0:
+      module = self.function_modules['0']
+      module_inputs = feats[i:i+1]
+
     else:
-      num_inputs = self.function_modules_num_inputs[fn_str]
+      module_key = str(fn_dep) + '-' + str(fn_art)
+      if module_key not in self.function_modules:
+        print('Cannot find module: ' + module_key)
+        exit()
+      module = self.function_modules[module_key]
+      
       module_inputs = []
-      while len(module_inputs) < num_inputs:
-        cur_input, j = self._forward_modules_ints_helper(feats, program, i, j)
+      while len(module_inputs) < fn_art:
+        cur_input, j = self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, save_activations, i, j)
         module_inputs.append(cur_input)
-    module_output = module(*module_inputs)
+    
+    midx = (fn_dept-1)*self.max_program_tree_depth+fn_art
+    if self.condition_method == 'concat':
+      icond_maps = cond_maps[i:i+1,0,:] if fn_art == 0 else cond_maps[i:i+1,midx,:]
+      icond_maps = icond_maps.unsqueeze(2).unsqueeze(3).expand(icond_maps.size() + feats.size()[-2:])
+      module_output = module(module_inputs, extra_channels=batch_coords[i:i+1], cond_maps=icond_maps)
+    else:
+      igammas = gammas[i:i+1,0,:] if fn_art == 0 else gammas[i:i+1,midx,:]
+      ibetas = betas[i:i+1,0,:] if fn_art == 0 else betas[i:i+1,midx,:]
+      module_output = module(module_inputs, igammas, ibetas, batch_coords[i:i+1])
+    if save_activations:
+      self.module_outputs.append(module_output)
     return module_output, j
     
 
@@ -220,7 +240,7 @@ class TFiLMedNet(nn.Module):
     if self.condition_method == 'concat':
       # Use parameters usually used to condition via FiLM instead to condition via concatenation
       cond_params = film[:,:,:2*self.module_dim]
-      cond_maps = cond_params.unsqueeze(3).unsqueeze(4).expand(cond_params.size() + x.size()[-2:])
+      cond_maps = cond_params #.unsqueeze(3).unsqueeze(4).expand(cond_params.size() + x.size()[-2:])
     else:
       gammas, betas = torch.split(film[:,:,:2*self.module_dim], self.module_dim, dim=-1)
       if not self.use_gamma:
@@ -239,32 +259,15 @@ class TFiLMedNet(nn.Module):
       self.feats = feats
     N, _, H, W = feats.size()
     
-    final_module_outputs = []
+    final_module_output = []
     for i in range(N):
-      cur_output, _ = self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, i, 0)
-      final_module_outputs.append(cur_output)
-###########################
-    # Propagate up the network from low-to-high numbered blocks
-    module_inputs = Variable(torch.zeros(feats.size()).unsqueeze(1).expand(
-      N, self.num_modules, self.module_dim, H, W)).type(torch.cuda.FloatTensor)
-    module_inputs[:,0] = feats
-    for fn_num in range(self.num_modules):
-      if self.condition_method == 'concat':
-        layer_output = self.function_modules[fn_num](module_inputs[:,fn_num],
-          extra_channels=batch_coords, cond_maps=cond_maps[:,fn_num])
-      else:
-        layer_output = self.function_modules[fn_num](module_inputs[:,fn_num],
-          gammas[:,fn_num,:], betas[:,fn_num,:], batch_coords)
+      cur_output, _ = self._forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, save_activations, i, 0)
+      final_module_output.append(cur_output)
+    final_module_output = torch.cat(final_module_output, 0)
 
-      # Store for future computation
-      if save_activations:
-        self.module_outputs.append(layer_output)
-      if fn_num == (self.num_modules - 1):
-        final_module_output = layer_output
-      else:
-        module_inputs_updated = module_inputs.clone()
-        module_inputs_updated[:,fn_num+1] = module_inputs_updated[:,fn_num+1] + layer_output
-        module_inputs = module_inputs_updated
+    # Store for future computation
+    #if save_activations:
+    #  self.module_outputs.append(layer_output)
 
     if self.debug_every <= -2:
       pdb.set_trace()
@@ -281,21 +284,21 @@ class TFiLMedNet(nn.Module):
     return out
 
 class ConCatTfilmBlock(nn.Module):
-    def __init__(self, num_input, in_dim, out_dim=None, with_residual=True, with_batchnorm=True,
+  def __init__(self, num_input, in_dim, out_dim=None, with_residual=True, with_batchnorm=True,
                with_cond=[False], dropout=0, num_extra_channels=0, extra_channel_freq=1,
                with_input_proj=0, num_cond_maps=0, kernel_size=3, batchnorm_affine=False,
                num_layers=1, condition_method='bn-film', debug_every=float('inf')):
-    super(ConCatTfilmBlock, self).__init__()
-    self.proj = nn.Conv2d(num_input * in_dim, in_dim, kernel_size=1, padding=0)
-    self.tfilmedResBlock = TfilmedResBlock(in_dim=in_dim, out_dim=out_dim, with_residual=with_residual, with_batchnorm=with_batchnorm,
+      super(ConCatTfilmBlock, self).__init__()
+      self.proj = nn.Conv2d(num_input * in_dim, in_dim, kernel_size=1, padding=0)
+      self.tfilmedResBlock = TfilmedResBlock(in_dim=in_dim, out_dim=out_dim, with_residual=with_residual, with_batchnorm=with_batchnorm,
                with_cond=with_cond, dropout=dropout, num_extra_channels=num_extra_channels, extra_channel_freq=extra_channel_freq,
                with_input_proj=with_input_proj, num_cond_maps=num_cond_maps, kernel_size=kernel_size, batchnorm_affine=batchnorm_affine,
                num_layers=num_layers, condition_method=condition_method, debug_every=debug_every)
 
-  def forward(self, x):
+  def forward(self, x, gammas=None, betas=None, extra_channels=None, cond_maps=None):
     out = torch.cat(x, 1) # Concatentate along depth
     out = F.relu(self.proj(out))
-    out = self.tfilmedResBlock(out)
+    out = self.tfilmedResBlock(out, gammas=gammas, betas=betas, extra_channels=extra_channels, cond_maps=cond_maps)
     return out
 
 class TfilmedResBlock(nn.Module):

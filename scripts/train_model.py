@@ -381,6 +381,30 @@ def train_loop(args, train_loader, val_loader):
           if args.grad_clip > 0:
             torch.nn.utils.clip_grad_norm(execution_engine.parameters(), args.grad_clip)
           ee_optimizer.step()
+      elif args.model_type == 'Tfilm':
+        if args.set_execution_engine_eval == 1:
+          set_mode('eval', [execution_engine])
+        programs_pred = program_generator(questions_var)
+        scores = execution_engine(feats_var, programs_pred, programs_var, programs_arities_var, programs_depths_var)
+        loss = loss_fn(scores, answers_var)
+
+        pg_optimizer.zero_grad()
+        ee_optimizer.zero_grad()
+        if args.debug_every <= -2:
+          pdb.set_trace()
+        loss.backward()
+        if args.debug_every < float('inf'):
+          check_grad_num_nans(execution_engine, 'TFiLMedNet')
+          check_grad_num_nans(program_generator, 'FiLMGen')
+
+        if args.train_program_generator == 1:
+          if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm(program_generator.parameters(), args.grad_clip)
+          pg_optimizer.step()
+        if args.train_execution_engine == 1:
+          if args.grad_clip > 0:
+            torch.nn.utils.clip_grad_norm(execution_engine.parameters(), args.grad_clip)
+          ee_optimizer.step()
 
       if t % args.record_loss_every == 0:
         running_loss += loss.data[0]
@@ -546,7 +570,7 @@ def get_execution_engine(args):
       kwargs['condition_pattern'] = parse_int_list(args.condition_pattern)
       ee = FiLMedNet(**kwargs)
     elif args.model_type == 'Tfilm':
-      kwargs['num_modules'] = args.max_program_module_arity * args.max_program_tree_depth
+      kwargs['num_modules'] = args.max_program_module_arity * args.max_program_tree_depth + 1
       
       kwargs['max_program_module_arity'] = args.max_program_module_arity
       kwargs['max_program_tree_depth'] = args.max_program_tree_depth

@@ -183,12 +183,12 @@ def main(args):
     max_program_arity_length = max(len(x) for x in programs_arities)
     for ar in programs_arities:
       while len(ar) < max_program_arity_length:
-        ar.append(0)
+        ar.append(-1)
     
     max_program_depth_length = max(len(x) for x in programs_depths)
     for de in programs_depths:
       while len(de) < max_program_depth_length:
-        de.append(0)
+        de.append(-1)
     
     assert(max_program_length == max_program_arity_length) and (max_program_length == max_program_depth_length)
 

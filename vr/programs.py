@@ -33,7 +33,7 @@ def list_to_tree(program_list, depth=1):
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
       'inputs': [build_subtree(program_list[i], depth+1) for i in cur['inputs']],
-      'arity': len(cur['inputs']) if len(cur['inputs']) > 0 else 1,
+      'arity': len(cur['inputs']),
       'depth' : depth,
     }
   return build_subtree(program_list[-1], depth)
@@ -155,12 +155,12 @@ def list_to_str(program_list):
 def list_to_arity(program_list):
   if 'arity' in program_list[0]:
     return [f['arity'] for f in program_list]
-  return [0] * len(program_list)
+  return [-1] * len(program_list)
 
 def list_to_depth(program_list):
   if 'depth' in program_list[0]:
     return [f['depth'] for f in program_list]
-  return [0] * len(program_list)
+  return [-1] * len(program_list)
 
 def get_num_inputs(f):
   # This is a litle hacky; it would be better to look up from metadata.json
