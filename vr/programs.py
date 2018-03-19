@@ -170,7 +170,7 @@ def get_num_inputs(f):
     f = str_to_function(f)
   name = f['function']
   
-  adic = {"<NULL>": 0, "<START>": 0, "<END>": 0, "_Answer": 1, "_And": 2, "_Find": 1, "scene": 0, "_Transform": 1}
+  adic = {"<NULL>": 0, "<START>": 0, "<END>": 0, "_Answer": 1, "_And": 2, "_Find": 0, "scene": 0, "_Transform": 1}
   return adic[name]
   
   #if name == 'scene':
