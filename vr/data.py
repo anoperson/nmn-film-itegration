@@ -198,4 +198,4 @@ def clevr_collate(batch):
   program_depth_batch = transposed[7]
   if transposed[7][0] is not None:
     program_depth_batch = default_collate(transposed[7])
-  return [question_batch, image_batch, feat_batch, answer_batch, program_seq_batch, program_struct_batch, program_arity_batch, program__batch]
+  return [question_batch, image_batch, feat_batch, answer_batch, program_seq_batch, program_struct_batch, program_arity_batch, program_depth_batch]
