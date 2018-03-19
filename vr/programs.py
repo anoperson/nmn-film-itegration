@@ -162,13 +162,19 @@ def list_to_depth(program_list):
     return [f['depth'] for f in program_list]
   return [-1] * len(program_list)
 
+
+
 def get_num_inputs(f):
   # This is a litle hacky; it would be better to look up from metadata.json
   if type(f) is str:
     f = str_to_function(f)
   name = f['function']
-  if name == 'scene':
-    return 0
-  if 'equal' in name or name in ['union', 'intersect', 'less_than', 'greater_than']:
-    return 2
-  return 1
+  
+  adic = {"<NULL>": 1, "<START>": 1, "<END>": 1, "_Answer": 1, "_And": 2, "_Find": 1, "scene": 0, "_Transform": 1}
+  return adic[name]
+  
+  #if name == 'scene':
+  #  return 0
+  #if 'equal' in name or name in ['union', 'intersect', 'less_than', 'greater_than']:
+  #  return 2
+  #return 1
