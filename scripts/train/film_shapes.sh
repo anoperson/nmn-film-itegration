@@ -38,7 +38,6 @@ python $THIS_SCRIPT_DIR/../train_model.py \
   --module_batchnorm_affine 0 \
   --module_num_layers 1 \
   --num_modules 4 \
-  --condition_pattern 1,1,1,1 \
   --gamma_option linear \
   --gamma_baseline 1 \
   --use_gamma 1 \
@@ -46,3 +45,5 @@ python $THIS_SCRIPT_DIR/../train_model.py \
   --use_local_copies 0 \
   --condition_method bn-film \
   --program_generator_parameter_efficient 1 $@
+  
+  #--condition_pattern 1,1,1,1 \

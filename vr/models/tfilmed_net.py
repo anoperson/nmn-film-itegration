@@ -83,7 +83,7 @@ class TFiLMedNet(nn.Module):
       for i in range(self.max_program_tree_depth):
         idepth = []
         for j in range(self.max_program_module_arity):
-          ijarity = [self.condition_method != 'concat'] * self.module_num_layers
+          ijarity = [[self.condition_method != 'concat']*2] * self.module_num_layers
           idepth.append(ijarity)
         self.condition_pattern.append(idepth)
 
@@ -116,7 +116,7 @@ class TFiLMedNet(nn.Module):
     #for fn_num in range(self.num_modules):
     
     mod = TfilmedResBlock(module_dim, with_residual=module_residual, with_batchnorm=module_batchnorm,
-                       with_cond=with_cond,
+                       with_cond=[True, True],
                        dropout=module_dropout,
                        num_extra_channels=self.num_extra_channels,
                        extra_channel_freq=self.extra_channel_freq,
@@ -171,7 +171,7 @@ class TFiLMedNet(nn.Module):
 
     init_modules(self.modules())
 
-  def _forward_modules(feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, save_activations, i, j):
+  def _forward_modules(self, feats, gammas, betas, cond_maps, batch_coords, program, program_arity, program_depth, save_activations, i, j):
     #used_fn_j = True
     if j < program.size(1):
       fn_idx = program.data[i, j]
@@ -237,6 +237,7 @@ class TFiLMedNet(nn.Module):
     # Prepare FiLM layers
     gammas = None
     betas = None
+    cond_maps = None
     if self.condition_method == 'concat':
       # Use parameters usually used to condition via FiLM instead to condition via concatenation
       cond_params = film[:,:,:2*self.module_dim]
