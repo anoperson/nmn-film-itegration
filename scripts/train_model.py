@@ -674,7 +674,7 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
   set_mode('eval', [program_generator, execution_engine, baseline_model])
   num_correct, num_samples = 0, 0
   for batch in loader:
-    questions, _, feats, answers, programs, _ = batch
+    questions, _, feats, answers, programs, _, programs_arities, programs_depths = batch
     if isinstance(questions, list):
       questions = questions[0]
 
@@ -683,6 +683,11 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
     answers_var = Variable(feats.cuda(), volatile=True)
     if programs[0] is not None:
       programs_var = Variable(programs.cuda(), volatile=True)
+    
+    if programs_arities[0] is not None:
+      programs_arities_var = Variable(programs_arities.cuda())
+    if programs_depths[0] is not None:
+      programs_depths_var = Variable(programs_depths.cuda())
 
     scores = None  # Use this for everything but PG
     if args.model_type == 'PG':
@@ -703,6 +708,9 @@ def check_accuracy(args, program_generator, execution_engine, baseline_model, lo
     elif args.model_type == 'FiLM':
       programs_pred = program_generator(questions_var)
       scores = execution_engine(feats_var, programs_pred)
+    elif args.model_type == 'Tfilm':
+      programs_pred = program_generator(questions_var)
+      scores = execution_engine(feats_var, programs_pred, programs_var, programs_arities_var, programs_depths_var)
     elif args.model_type in ['LSTM', 'CNN+LSTM', 'CNN+LSTM+SA']:
       scores = baseline_model(questions_var, feats_var)
 
