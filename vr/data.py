@@ -63,7 +63,7 @@ class ClevrDataset(Dataset):
     if 'programs' in question_h5:
       self.all_programs = _dataset_to_tensor(question_h5['programs'], mask)
     if 'programs_arities' in question_h5:
-      self.all_programs_arities = _dataset_to_tensor(question_h5['programs_arities'], maks)
+      self.all_programs_arities = _dataset_to_tensor(question_h5['programs_arities'], mask)
       self.max_arity = self.all_programs_arities.data.max() # question_h5['programs_arities'].max()
     if 'programs_depths' in question_h5:
       self.all_programs_depths = _dataset_to_tensor(question_h5['programs_depths'], mask)
