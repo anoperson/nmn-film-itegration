@@ -150,7 +150,7 @@ def main():
     print(programs_depths.shape)
     
     with h5py.File(part + '_features.h5', 'w') as f:
-      features = images.transpose(0, 3, 1, 2)
+      features = images.transpose(0, 3, 1, 2) / 255.0
       features_dataset = f.create_dataset('features', (features.shape), dtype=numpy.float32)
       features_dataset[:] = features
       
