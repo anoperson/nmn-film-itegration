@@ -140,10 +140,10 @@ def main():
     
     # Create h5 file
     print('Writing output')
-    questions_encoded = np.asarray(questions_encoded, dtype=np.int32)
-    programs_encoded = np.asarray(programs_encoded, dtype=np.int32)
-    programs_arities = np.asarray(programs_arities, dtype=np.int32)
-    programs_depths = np.asarray(programs_depths, dtype=np.int32)
+    questions_encoded = numpy.asarray(questions_encoded, dtype=numpy.int32)
+    programs_encoded = numpy.asarray(programs_encoded, dtype=numpy.int32)
+    programs_arities = numpy.asarray(programs_arities, dtype=numpy.int32)
+    programs_depths = numpy.asarray(programs_depths, dtype=numpy.int32)
     print(questions_encoded.shape)
     print(programs_encoded.shape)
     print(programs_arities.shape)
@@ -166,7 +166,7 @@ def main():
         f.create_dataset('programs_depths', data=programs_depths)
       
       if len(answers) > 0:
-        f.create_dataset('answers', data=np.asarray(answers))
+        f.create_dataset('answers', data=numpy.asarray(answers))
 
   with open('vocab.json', 'w') as f:
     json.dump({'question_token_to_idx': question_vocab,
