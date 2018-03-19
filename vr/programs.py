@@ -45,8 +45,8 @@ def tree_to_prefix(program_tree):
     output.append({
       'function': cur['function'],
       'value_inputs': [x for x in cur['value_inputs']],
-      'arity': cur['arity':],
-      'depth': cur['depth':],
+      'arity': cur['arity'],
+      'depth': cur['depth'],
     })
     for node in cur['inputs']:
       helper(node)
