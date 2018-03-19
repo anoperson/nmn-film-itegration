@@ -63,8 +63,6 @@ def main():
                       help="Path to the SHAPES dataset")
   parser.add_argument('--size', type=str,
                       help="Which version of the training set to use")
-  parser.add_argument('--programs', type=str, choices=['none', 'chain', 'tree'],
-                      help="Which programs to put in the resulting HDF5")
 
   args = parser.parse_args()
   parts = ['train', 'val', 'test']
