@@ -54,7 +54,7 @@ parser.add_argument('--shuffle_train_data', default=1, type=int)
 
 # What type of model to use and which parts to train
 parser.add_argument('--model_type', default='PG',
-  choices=['FiLM', 'PG', 'EE', 'PG+EE', 'LSTM', 'CNN+LSTM', 'CNN+LSTM+SA'])
+  choices=['Tfilm', 'FiLM', 'PG', 'EE', 'PG+EE', 'LSTM', 'CNN+LSTM', 'CNN+LSTM+SA'])
 parser.add_argument('--train_program_generator', default=1, type=int)
 parser.add_argument('--train_execution_engine', default=1, type=int)
 parser.add_argument('--baseline_train_only_rnn', default=0, type=int)
