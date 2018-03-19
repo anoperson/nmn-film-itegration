@@ -592,7 +592,7 @@ def get_execution_engine(args):
       kwargs['print_verbose_every'] = args.print_verbose_every
       kwargs['condition_method'] = args.condition_method
       kwargs['condition_pattern'] = parse_int_list(args.condition_pattern)
-      ee = FiLMedNet(**kwargs)
+      ee = TFiLMedNet(**kwargs)
     else:
       ee = ModuleNet(**kwargs)
   ee.cuda()
