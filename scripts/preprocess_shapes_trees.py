@@ -124,7 +124,7 @@ def main():
       max_program_length = max(len(x) for x in programs_encoded)
       for pe in programs_encoded:
         while len(pe) < max_program_length:
-          pe.append(vocab['program_token_to_idx']['<NULL>'])
+          pe.append(program_vocab['<NULL>'])
     
       max_program_arity_length = max(len(x) for x in programs_arities)
       for ar in programs_arities:
