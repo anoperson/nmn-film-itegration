@@ -53,25 +53,31 @@ def program_to_str(program, mode):
     return vr.programs.list_to_str(program_postfix)
   return None
 
-def program_to_arity(program, mode):
+def program_to_arity(program, mode, add_prefix=True, add_postfix=True):
   if mode == 'prefix':
     program_prefix = vr.programs.list_to_prefix(program)
-    return vr.programs.list_to_arity(program_prefix)
+    res = vr.programs.list_to_arity(program_prefix)
   elif mode == 'postfix':
     program_postfix = vr.programs.list_to_postfix(program)
-    return vr.programs.list_to_arity(program_postfix)
+    res = vr.programs.list_to_arity(program_postfix)
   else:
     raise(NotImplementedError)
+  if add_prefix: res = [-1] + res
+  if add_postfix: res = res + [-1]
+  return res
 
-def program_to_depth(program, mode):
+def program_to_depth(program, mode, add_prefix=True, add_postfix=True):
   if mode == 'prefix':
     program_prefix = vr.programs.list_to_prefix(program)
-    return vr.programs.list_to_depth(program_prefix)
+    res = vr.programs.list_to_depth(program_prefix)
   elif mode == 'postfix':
     program_postfix = vr.programs.list_to_postfix(program)
-    return vr.programs.list_to_depth(program_postfix)
+    res = vr.programs.list_to_depth(program_postfix)
   else:
     raise(NotImplementedError)
+  if add_prefix: res = [-1] + res
+  if add_postfix: res = res + [-1]
+  return res
 
 def main(args):
   if (args.input_vocab_json == '') and (args.output_vocab_json == ''):
